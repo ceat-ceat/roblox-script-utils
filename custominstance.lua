@@ -2,7 +2,7 @@
 -- please keep my credit! thank you!
 local http = game:GetService("HttpService")
 if _G.BaseInstance then return _G.BaseInstance end
-require(script.Parent:WaitForChild("FakeBindable"))
+loadstring(game:HttpGet("https://raw.githubusercontent.com/ceat-ceat/roblox-script-utils/main/fakebindable.lua"))()
 local instancemaker,instances = {},{}
 local instance = {
 	__index = function(self,index)
