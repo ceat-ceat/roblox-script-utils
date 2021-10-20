@@ -1,4 +1,4 @@
-if _G.FakeBindable then return end
+if _G.FakeBindable then return _G.FakeBindable end
 -- i know this is bad and absolutely not optimal but im stupid pls dont laugh at me paslpdpsldpasslsldspslplp
 
 
@@ -73,4 +73,4 @@ fakebindable.fire,fakeevent.wait,fakeevent.connect = fakebindable.Fire,fakeevent
 
 _G.FakeBindable = setmetatable({},fakebindable)
 
-return "fake bindable setup; you may now use _G.FakeBindable.new()"
+return _G.FakeBindable
