@@ -1,76 +1,106 @@
-if _G.FakeBindable then return _G.FakeBindable end
--- i know this is bad and absolutely not optimal but im stupid pls dont laugh at me paslpdpsldpasslsldspslplp
+local bindableevent = {}
+local event = {}
+local connection = {}
+bindableevent.__index = bindableevent
+event.__index = event
+connection.__index = connection
+
+bindableevent.__tostring = function()
+	return "BindableEvent"
+end
+
+event.__tostring = function(self)
+	return `Signal {self._Name}`
+end
+
+connection.__tostring = function()
+	return "Connection"
+end
 
 
--- fake connection
+function connection:Disconnect()
+	self.Connected = false
+	self._Callback = nil
+	table.remove(self._Parent._Connections, table.find(self._Parent._Connections, self))
+end
+
+connection.disconnect = connection.Disconnect
+
+function connection.new(parentevent, callback, isonce)
+	local new = setmetatable({
+		Connected = true,
+
+		_Parent = parentevent,
+		_Once = isonce,
+		_Callback = callback,
+	}, connection)
+
+	return new
+end
 
 
-local fakeconnection = {
-	__tostring = function()
-		return "FakeConnection"
+function event:Connect(callback)
+	local c = connection.new(self, callback)
+	table.insert(self._Connections, c)
+	return c
+end
+
+function event:Wait()
+	local currentargs = self._LatestArgs
+	repeat
+		task.wait()
+	until self._LatestArgs ~= currentargs
+	return unpack(self._LatestArgs)
+end
+
+function event:Once(callback)
+	local c = connection.new(self, callback, true)
+	table.insert(self._Connections, c)
+	return c
+end
+
+event.connect = event.Connect
+event.wait = event.Wait
+event.once = event.Once
+
+function event.new(name)
+	local new = setmetatable({
+		_Name = name,
+		_LatestArgs = {},
+		_Connections = {},
+	}, event)
+
+	return new
+end
+
+
+function bindableevent:Fire(...)
+	self.Event._LatestArgs = {...}
+
+	for i, connection in self.Event._Connections do
+		task.spawn(connection._Callback, ...)
+
+		if connection._Once then
+			connection:Disconnect()
+		end
 	end
-}
-fakeconnection.__index = fakeconnection
-
-function fakeconnection:Disconnect()
-	self.Callback,self.Connected = nil,false
 end
 
-function fakeconnection.new(callback)
-	return setmetatable({Callback=callback,Connected=true},fakeconnection)
-end
-
-fakeconnection.disconnect = fakeconnection.Disconnect
-
-
--- fake event
-
-
-local fakeevent = {
-	__tostring = function()
-		return "FakeEvent"
-	end
-}
-fakeevent.__index = fakeevent
-
-function fakeevent:Wait()
-	local timesfired = self.TimesFired
-	repeat wait() until timesfired ~= self.TimesFired
-	return table.unpack(self.LatestArguments)
-end
-
-function fakeevent:Connect(callback)
-	local connection = fakeconnection.new(callback)
-	table.insert(self.Connections,connection)
-	return connection
-end
-
-
--- fake bindable
-
-
-local fakebindable = {
-	__tostring = function()
-		return "FakeBindableEvent"
-	end
-}
-fakebindable.__index = fakebindable
-
-function fakebindable:Fire(...)
-	self.Event.LatestArguments,self.Event.TimesFired = {...},self.Event.TimesFired + 1
-	for i, v in next, self.Event.Connections do
-		if v.Callback then v.Callback(...) end
+function bindableevent:Destroy()
+	for _, c in self.Event._Connections do
+		c:Disconnect()
 	end
 end
 
-function fakebindable.new()
-	return setmetatable({Event=setmetatable({LatestArguments={},TimesFired=0,Connections={}},fakeevent)},fakebindable)
+bindableevent.fire = bindableevent.Fire
+bindableevent.destroy = bindableevent.Destroy
+
+function bindableevent.new(name): BindableEvent
+	local new = setmetatable({
+		Event = event.new(name)
+	}, bindableevent)
+
+	return new
 end
 
-fakebindable.fire,fakeevent.wait,fakeevent.connect = fakebindable.Fire,fakeevent.Wait,fakeevent.Connect
-
--- assign functions to _G.FakeEvent
-
-_G.FakeBindable = setmetatable({},fakebindable)
-
-return _G.FakeBindable
+return bindableevent
